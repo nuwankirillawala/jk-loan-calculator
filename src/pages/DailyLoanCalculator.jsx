@@ -13,6 +13,8 @@ function DailyLoanCalculator() {
   const [loanAmount, setLoanAmount] = useState('')
   const [days, setDays] = useState('')
   const [results, setResults] = useState(null)
+  const [amountError, setAmountError] = useState('')
+  const [daysError, setDaysError] = useState('')
 
   const monthlyInterestRate = 0.10 // 10%
   const dailyInterestRate = monthlyInterestRate / 30 // Divide by 30 days
@@ -22,14 +24,44 @@ function DailyLoanCalculator() {
     return Math.round(value / 10) * 10
   }
 
-  const calculate = () => {
-    const amount = parseFloat(loanAmount)
-    const numDays = parseInt(days)
+  const validateAmount = (value) => {
+    if (!value || value === '') {
+      setAmountError('Loan amount is required')
+      return false
+    }
+    const amount = parseFloat(value)
+    if (isNaN(amount) || amount <= 0) {
+      setAmountError('Please enter a valid loan amount')
+      return false
+    }
+    setAmountError('')
+    return true
+  }
 
-    if (!amount || !numDays || amount <= 0 || numDays <= 0) {
-      alert('Please enter valid loan amount and number of days')
+  const validateDays = (value) => {
+    if (!value || value === '') {
+      setDaysError('Number of days is required')
+      return false
+    }
+    const numDays = parseInt(value)
+    if (isNaN(numDays) || numDays <= 0) {
+      setDaysError('Please enter a valid number of days')
+      return false
+    }
+    setDaysError('')
+    return true
+  }
+
+  const calculate = () => {
+    const isAmountValid = validateAmount(loanAmount)
+    const isDaysValid = validateDays(days)
+
+    if (!isAmountValid || !isDaysValid) {
       return
     }
+
+    const amount = parseFloat(loanAmount)
+    const numDays = parseInt(days)
 
     // Interest calculated for month and divided for days
     const monthlyInterest = amount * monthlyInterestRate
@@ -43,6 +75,8 @@ function DailyLoanCalculator() {
       days: numDays,
       monthlyInterestRate: monthlyInterestRate * 100,
       dailyInterestRate: dailyInterestRate * 100,
+      monthlyInterest,
+      dailyInterest,
       totalInterest,
       dailyInstallment,
       roundedDailyInstallment,
@@ -54,6 +88,8 @@ function DailyLoanCalculator() {
     setLoanAmount('')
     setDays('')
     setResults(null)
+    setAmountError('')
+    setDaysError('')
   }
 
   return (
@@ -68,8 +104,14 @@ function DailyLoanCalculator() {
             label="Loan Amount (LKR)"
             type="number"
             value={loanAmount}
-            onChange={(e) => setLoanAmount(e.target.value)}
+            onChange={(e) => {
+              setLoanAmount(e.target.value)
+              if (amountError) validateAmount(e.target.value)
+            }}
+            onBlur={() => validateAmount(loanAmount)}
             variant="outlined"
+            error={!!amountError}
+            helperText={amountError}
             sx={{ mb: 2 }}
           />
         </Grid>
@@ -79,8 +121,14 @@ function DailyLoanCalculator() {
             label="Number of Days"
             type="number"
             value={days}
-            onChange={(e) => setDays(e.target.value)}
+            onChange={(e) => {
+              setDays(e.target.value)
+              if (daysError) validateDays(e.target.value)
+            }}
+            onBlur={() => validateDays(days)}
             variant="outlined"
+            error={!!daysError}
+            helperText={daysError}
             sx={{ mb: 2 }}
           />
         </Grid>
@@ -125,6 +173,24 @@ function DailyLoanCalculator() {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
                       <Typography variant="body2" color="text.secondary">Daily Interest Rate:</Typography>
                       <Typography variant="body2" fontWeight={500}>{results.dailyInterestRate.toFixed(4)}%</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
+                      <Typography variant="body2" color="text.secondary">Monthly Interest:</Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        LKR {results.monthlyInterest.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
+                      <Typography variant="body2" color="text.secondary">Daily Interest:</Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        LKR {results.dailyInterest.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
                       <Typography variant="body2" color="text.secondary">Installment Before Rounding:</Typography>

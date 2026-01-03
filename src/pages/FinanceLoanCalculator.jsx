@@ -13,6 +13,8 @@ function FinanceLoanCalculator() {
   const [loanAmount, setLoanAmount] = useState('')
   const [months, setMonths] = useState('')
   const [results, setResults] = useState(null)
+  const [amountError, setAmountError] = useState('')
+  const [monthsError, setMonthsError] = useState('')
 
   const monthlyInterestRate = 0.05 // 5%
 
@@ -21,14 +23,44 @@ function FinanceLoanCalculator() {
     return Math.round(value / 10) * 10
   }
 
-  const calculate = () => {
-    const amount = parseFloat(loanAmount)
-    const numMonths = parseInt(months)
+  const validateAmount = (value) => {
+    if (!value || value === '') {
+      setAmountError('Loan amount is required')
+      return false
+    }
+    const amount = parseFloat(value)
+    if (isNaN(amount) || amount <= 0) {
+      setAmountError('Please enter a valid loan amount')
+      return false
+    }
+    setAmountError('')
+    return true
+  }
 
-    if (!amount || !numMonths || amount <= 0 || numMonths <= 0) {
-      alert('Please enter valid loan amount and number of months')
+  const validateMonths = (value) => {
+    if (!value || value === '') {
+      setMonthsError('Number of months is required')
+      return false
+    }
+    const numMonths = parseInt(value)
+    if (isNaN(numMonths) || numMonths <= 0) {
+      setMonthsError('Please enter a valid number of months')
+      return false
+    }
+    setMonthsError('')
+    return true
+  }
+
+  const calculate = () => {
+    const isAmountValid = validateAmount(loanAmount)
+    const isMonthsValid = validateMonths(months)
+
+    if (!isAmountValid || !isMonthsValid) {
       return
     }
+
+    const amount = parseFloat(loanAmount)
+    const numMonths = parseInt(months)
 
     // Calculate all interest first, then distribute as equal installments
     const totalInterest = amount * monthlyInterestRate * numMonths
@@ -54,6 +86,8 @@ function FinanceLoanCalculator() {
     setLoanAmount('')
     setMonths('')
     setResults(null)
+    setAmountError('')
+    setMonthsError('')
   }
 
   return (
@@ -68,8 +102,14 @@ function FinanceLoanCalculator() {
             label="Loan Amount (LKR)"
             type="number"
             value={loanAmount}
-            onChange={(e) => setLoanAmount(e.target.value)}
+            onChange={(e) => {
+              setLoanAmount(e.target.value)
+              if (amountError) validateAmount(e.target.value)
+            }}
+            onBlur={() => validateAmount(loanAmount)}
             variant="outlined"
+            error={!!amountError}
+            helperText={amountError}
             sx={{ mb: 2 }}
           />
         </Grid>
@@ -79,8 +119,14 @@ function FinanceLoanCalculator() {
             label="Number of Months"
             type="number"
             value={months}
-            onChange={(e) => setMonths(e.target.value)}
+            onChange={(e) => {
+              setMonths(e.target.value)
+              if (monthsError) validateMonths(e.target.value)
+            }}
+            onBlur={() => validateMonths(months)}
             variant="outlined"
+            error={!!monthsError}
+            helperText={monthsError}
             sx={{ mb: 2 }}
           />
         </Grid>

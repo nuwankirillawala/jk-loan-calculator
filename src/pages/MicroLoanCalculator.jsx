@@ -14,6 +14,8 @@ function MicroLoanCalculator() {
   const [loanAmount, setLoanAmount] = useState('')
   const [weeks, setWeeks] = useState('')
   const [results, setResults] = useState(null)
+  const [amountError, setAmountError] = useState('')
+  const [weeksError, setWeeksError] = useState('')
 
   const monthlyInterestRate = 0.08 // 8%
   const weeklyInterestRate = monthlyInterestRate / 4 // Approximate weekly rate
@@ -23,31 +25,90 @@ function MicroLoanCalculator() {
     return Math.round(value / 10) * 10
   }
 
+  const validateAmount = (value) => {
+    if (!value || value === '') {
+      setAmountError('Loan amount is required')
+      return false
+    }
+
+    const amount = parseFloat(value)
+    
+    if (isNaN(amount) || amount <= 0) {
+      setAmountError('Please enter a valid loan amount')
+      return false
+    }
+
+    // Check minimum amount
+    if (amount < 10000) {
+      setAmountError('Loan amount must be at least LKR 10,000')
+      return false
+    }
+
+    // If amount is exactly 10K, it's valid (fixed to 18 weeks)
+    if (amount === 10000) {
+      setAmountError('')
+      return true
+    }
+
+    // For amounts above 10K, must be a multiple of 5K
+    if (amount > 10000 && amount % 5000 !== 0) {
+      const nearestLower = Math.floor(amount / 5000) * 5000
+      const nearestHigher = Math.ceil(amount / 5000) * 5000
+      let suggestion = ''
+      
+      if (nearestLower >= 10000) {
+        suggestion = ` (Try LKR ${nearestLower.toLocaleString('en-US')} or LKR ${nearestHigher.toLocaleString('en-US')})`
+      } else {
+        suggestion = ` (Try LKR ${nearestHigher.toLocaleString('en-US')})`
+      }
+      
+      setAmountError(`Loan amount must be a multiple of LKR 5,000${suggestion}`)
+      return false
+    }
+
+    setAmountError('')
+    return true
+  }
+
+  const validateWeeks = (value) => {
+    if (!value || value === '') {
+      setWeeksError('Please select a loan period')
+      return false
+    }
+
+    const numWeeks = parseInt(value)
+    const amount = parseFloat(loanAmount)
+    
+    // If amount is exactly 10K, must be 18 weeks
+    if (amount === 10000 && numWeeks !== 18) {
+      setWeeksError('Loan amount of LKR 10,000 is fixed to 18 weeks period')
+      return false
+    }
+    
+    // For amounts above 10K, can be 18 or 26 weeks
+    if (amount > 10000 && numWeeks !== 18 && numWeeks !== 26) {
+      setWeeksError('Loan period must be either 18 or 26 weeks')
+      return false
+    }
+
+    setWeeksError('')
+    return true
+  }
+
   const calculate = () => {
+    const isAmountValid = validateAmount(loanAmount)
+    const isWeeksValid = validateWeeks(weeks)
+
+    if (!isAmountValid || !isWeeksValid) {
+      return
+    }
+
     const amount = parseFloat(loanAmount)
     const numWeeks = parseInt(weeks)
 
-    if (!amount || !numWeeks || amount <= 0 || numWeeks <= 0) {
-      alert('Please enter valid loan amount and number of weeks')
-      return
-    }
-
-    // Check if loan amount is 15K, 10K, or 25K (fixed 18 weeks)
-    const fixedAmounts = [10000, 15000, 25000]
-    const isFixedAmount = fixedAmounts.includes(amount)
-
-    if (isFixedAmount && numWeeks !== 18) {
-      alert('For loan amounts of 10K, 15K, or 25K, the period must be 18 weeks')
-      return
-    }
-
-    // For 30K and above, can select 18 or 36 weeks
-    if (amount >= 30000 && numWeeks !== 18 && numWeeks !== 36) {
-      alert('For loan amounts of 30K and above, the period must be either 18 or 36 weeks')
-      return
-    }
-
     // Monthly interest calculation
+    const monthlyInterest = amount * monthlyInterestRate
+    const weeklyInterest = monthlyInterest / 4
     const totalMonths = numWeeks / 4
     const totalInterest = amount * monthlyInterestRate * totalMonths
     const weeklyInstallment = (amount + totalInterest) / numWeeks
@@ -57,6 +118,8 @@ function MicroLoanCalculator() {
       loanAmount: amount,
       weeks: numWeeks,
       monthlyInterestRate: monthlyInterestRate * 100,
+      monthlyInterest,
+      weeklyInterest,
       totalInterest,
       weeklyInstallment,
       roundedWeeklyInstallment,
@@ -68,35 +131,62 @@ function MicroLoanCalculator() {
     setLoanAmount('')
     setWeeks('')
     setResults(null)
+    setAmountError('')
+    setWeeksError('')
   }
 
   const handleAmountChange = (value) => {
     setLoanAmount(value)
+    
+    // Validate on change if there's already an error or if field is being cleared
+    if (amountError || value === '') {
+      if (value === '') {
+        setAmountError('')
+      } else {
+        validateAmount(value)
+      }
+    }
+    
     const amount = parseFloat(value)
     
-    // Auto-set weeks based on loan amount
-    if (amount === 10000 || amount === 15000 || amount === 25000) {
-      setWeeks('18')
-    } else if (amount >= 30000) {
-      // Default to 18 weeks, but user can change to 36
-      if (!weeks || weeks === '') {
+    // Auto-set weeks based on amount
+    if (!isNaN(amount)) {
+      if (amount === 10000) {
+        // 10K is fixed to 18 weeks
         setWeeks('18')
+      } else if (amount > 10000 && amount % 5000 === 0) {
+        // Amounts above 10K (multiple of 5K) can choose 18 or 26 weeks
+        if (!weeks || weeks === '') {
+          setWeeks('18')
+        }
+      } else {
+        // Clear weeks if amount is invalid
+        if (weeks) {
+          setWeeks('')
+        }
       }
-    } else {
-      // Clear weeks if amount doesn't match any category
-      setWeeks('')
     }
   }
 
-  const isFixedAmount = () => {
-    const amount = parseFloat(loanAmount)
-    return amount === 10000 || amount === 15000 || amount === 25000
+  const handleAmountBlur = () => {
+    validateAmount(loanAmount)
+  }
+
+  const handleWeeksChange = (value) => {
+    setWeeks(value)
+    if (weeksError) {
+      validateWeeks(value)
+    }
+  }
+
+  const handleWeeksBlur = () => {
+    validateWeeks(weeks)
   }
 
   return (
     <CalculatorLayout
       title="Micro Loan Calculator"
-      description="Calculate your weekly installment for micro loans. Monthly interest calculation applied."
+      description="Calculate your weekly installment for micro loans. Monthly interest calculation applied. Minimum: LKR 10,000 (18 weeks fixed). Above 10K: Must be a multiple of LKR 5,000 (18 or 26 weeks)."
     >
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
@@ -106,9 +196,11 @@ function MicroLoanCalculator() {
             type="number"
             value={loanAmount}
             onChange={(e) => handleAmountChange(e.target.value)}
+            onBlur={handleAmountBlur}
             variant="outlined"
+            error={!!amountError}
+            helperText={amountError || "Minimum: LKR 10,000 (18 weeks fixed) | Above 10K: Must be a multiple of LKR 5,000 (e.g., 15,000, 20,000, 25,000, 30,000, etc.)"}
             sx={{ mb: 2 }}
-            helperText="10K, 15K, 25K: 18 weeks fixed | 30K+: 18 or 36 weeks"
           />
         </Grid>
         <Grid item xs={12} md={6}>
@@ -117,14 +209,16 @@ function MicroLoanCalculator() {
             select
             label="Number of Weeks"
             value={weeks}
-            onChange={(e) => setWeeks(e.target.value)}
+            onChange={(e) => handleWeeksChange(e.target.value)}
+            onBlur={handleWeeksBlur}
             variant="outlined"
+            error={!!weeksError}
+            disabled={parseFloat(loanAmount) === 10000}
+            helperText={weeksError || (parseFloat(loanAmount) === 10000 ? "Fixed to 18 weeks for LKR 10,000" : "Select 18 or 26 weeks")}
             sx={{ mb: 2 }}
-            disabled={isFixedAmount()}
-            helperText={isFixedAmount() ? 'Fixed at 18 weeks for this loan amount' : ''}
           >
             <MenuItem value="18">18 weeks</MenuItem>
-            <MenuItem value="36">36 weeks</MenuItem>
+            <MenuItem value="26">26 weeks</MenuItem>
           </TextField>
         </Grid>
         <Grid item xs={12}>
@@ -164,6 +258,24 @@ function MicroLoanCalculator() {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
                       <Typography variant="body2" color="text.secondary">Monthly Interest Rate:</Typography>
                       <Typography variant="body2" fontWeight={500}>{results.monthlyInterestRate.toFixed(2)}%</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
+                      <Typography variant="body2" color="text.secondary">Monthly Interest:</Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        LKR {results.monthlyInterest.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
+                      <Typography variant="body2" color="text.secondary">Weekly Interest:</Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        LKR {results.weeklyInterest.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
                       <Typography variant="body2" color="text.secondary">Installment Before Rounding:</Typography>

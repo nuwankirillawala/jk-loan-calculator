@@ -13,6 +13,8 @@ function SpeedLoanCalculator() {
   const [loanAmount, setLoanAmount] = useState('')
   const [months, setMonths] = useState('')
   const [results, setResults] = useState(null)
+  const [amountError, setAmountError] = useState('')
+  const [monthsError, setMonthsError] = useState('')
 
   const monthlyInterestRate = 0.10 // 10%
 
@@ -21,16 +23,47 @@ function SpeedLoanCalculator() {
     return Math.round(value / 10) * 10
   }
 
-  const calculate = () => {
-    const amount = parseFloat(loanAmount)
-    const numMonths = parseInt(months)
+  const validateAmount = (value) => {
+    if (!value || value === '') {
+      setAmountError('Loan amount is required')
+      return false
+    }
+    const amount = parseFloat(value)
+    if (isNaN(amount) || amount <= 0) {
+      setAmountError('Please enter a valid loan amount')
+      return false
+    }
+    setAmountError('')
+    return true
+  }
 
-    if (!amount || !numMonths || amount <= 0 || numMonths <= 0) {
-      alert('Please enter valid loan amount and number of months')
+  const validateMonths = (value) => {
+    if (!value || value === '') {
+      setMonthsError('Number of months is required')
+      return false
+    }
+    const numMonths = parseInt(value)
+    if (isNaN(numMonths) || numMonths <= 0) {
+      setMonthsError('Please enter a valid number of months')
+      return false
+    }
+    setMonthsError('')
+    return true
+  }
+
+  const calculate = () => {
+    const isAmountValid = validateAmount(loanAmount)
+    const isMonthsValid = validateMonths(months)
+
+    if (!isAmountValid || !isMonthsValid) {
       return
     }
 
+    const amount = parseFloat(loanAmount)
+    const numMonths = parseInt(months)
+
     // Interest calculated monthly
+    const monthlyInterest = amount * monthlyInterestRate
     const totalInterest = amount * monthlyInterestRate * numMonths
     const monthlyInstallment = (amount + totalInterest) / numMonths
     const roundedMonthlyInstallment = roundToNearest10(monthlyInstallment)
@@ -39,6 +72,7 @@ function SpeedLoanCalculator() {
       loanAmount: amount,
       months: numMonths,
       monthlyInterestRate: monthlyInterestRate * 100,
+      monthlyInterest,
       totalInterest,
       monthlyInstallment,
       roundedMonthlyInstallment,
@@ -50,6 +84,8 @@ function SpeedLoanCalculator() {
     setLoanAmount('')
     setMonths('')
     setResults(null)
+    setAmountError('')
+    setMonthsError('')
   }
 
   return (
@@ -64,8 +100,14 @@ function SpeedLoanCalculator() {
             label="Loan Amount (LKR)"
             type="number"
             value={loanAmount}
-            onChange={(e) => setLoanAmount(e.target.value)}
+            onChange={(e) => {
+              setLoanAmount(e.target.value)
+              if (amountError) validateAmount(e.target.value)
+            }}
+            onBlur={() => validateAmount(loanAmount)}
             variant="outlined"
+            error={!!amountError}
+            helperText={amountError}
             sx={{ mb: 2 }}
           />
         </Grid>
@@ -75,8 +117,14 @@ function SpeedLoanCalculator() {
             label="Number of Months"
             type="number"
             value={months}
-            onChange={(e) => setMonths(e.target.value)}
+            onChange={(e) => {
+              setMonths(e.target.value)
+              if (monthsError) validateMonths(e.target.value)
+            }}
+            onBlur={() => validateMonths(months)}
             variant="outlined"
+            error={!!monthsError}
+            helperText={monthsError}
             sx={{ mb: 2 }}
           />
         </Grid>
@@ -117,6 +165,15 @@ function SpeedLoanCalculator() {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
                       <Typography variant="body2" color="text.secondary">Monthly Interest Rate:</Typography>
                       <Typography variant="body2" fontWeight={500}>{results.monthlyInterestRate.toFixed(2)}%</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1, borderBottom: '1px solid #e0e0e0' }}>
+                      <Typography variant="body2" color="text.secondary">Monthly Interest:</Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        LKR {results.monthlyInterest.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
                       <Typography variant="body2" color="text.secondary">Installment Before Rounding:</Typography>
